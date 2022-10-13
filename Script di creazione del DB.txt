@@ -1,0 +1,712 @@
+--
+-- PostgreSQL database dump
+--
+
+CREATE DATABASE modena WITH TEMPLATE = template0 ENCODING = 'UTF8' LOCALE = 'Italian_Italy.1252';
+
+
+ALTER DATABASE modena OWNER TO postgres;
+
+CREATE SCHEMA local;
+
+ALTER SCHEMA local OWNER TO postgres;
+
+CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
+
+COMMENT ON EXTENSION postgis IS 'PostGIS geometry and geography spatial types and functions';
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 217 (class 1259 OID 46659)
+-- Name: fer; Type: TABLE; Schema: local; Owner: postgres
+--
+
+CREATE TABLE local.fer (
+    id bigint NOT NULL,
+    geom public.geometry(Point,4326),
+    name character varying,
+    latitude character varying,
+    longitude character varying,
+    strada_id bigint,
+    l_array character varying(700)
+);
+
+
+ALTER TABLE local.fer OWNER TO postgres;
+
+--
+-- TOC entry 216 (class 1259 OID 46240)
+-- Name: linee; Type: TABLE; Schema: local; Owner: postgres
+--
+
+CREATE TABLE local.linee (
+    id integer NOT NULL,
+    geom public.geometry(MultiLineString,4326),
+    "from" character varying,
+    name character varying,
+    network character varying,
+    operator character varying,
+    "to" character varying
+);
+
+
+ALTER TABLE local.linee OWNER TO postgres;
+
+--
+-- TOC entry 219 (class 1259 OID 47764)
+-- Name: linee_fer_orario; Type: TABLE; Schema: local; Owner: postgres
+--
+
+CREATE TABLE local.linee_fer_orario (
+    id bigint NOT NULL,
+    stop_id bigint NOT NULL,
+    corsa character varying(255),
+    sequenza character varying(255)
+);
+
+
+ALTER TABLE local.linee_fer_orario OWNER TO postgres;
+
+--
+-- TOC entry 222 (class 1259 OID 49300)
+-- Name: linee_strade; Type: TABLE; Schema: local; Owner: postgres
+--
+
+CREATE TABLE local.linee_strade (
+    id bigint NOT NULL,
+    strada_id bigint NOT NULL
+);
+
+
+ALTER TABLE local.linee_strade OWNER TO postgres;
+
+--
+-- TOC entry 245 (class 1259 OID 74169)
+-- Name: q_fer_m2; Type: TABLE; Schema: local; Owner: postgres
+--
+
+CREATE TABLE local.q_fer_m2 (
+    id bigint NOT NULL,
+    count bigint,
+    area double precision,
+    fer_per_m2 double precision,
+    geom public.geometry
+);
+
+
+ALTER TABLE local.q_fer_m2 OWNER TO postgres;
+
+--
+-- TOC entry 247 (class 1259 OID 74185)
+-- Name: q_fer_mt_strada; Type: TABLE; Schema: local; Owner: postgres
+--
+
+CREATE TABLE local.q_fer_mt_strada (
+    id bigint NOT NULL,
+    count bigint,
+    sum double precision,
+    fer_per_mt_strada double precision,
+    geom public.geometry
+);
+
+
+ALTER TABLE local.q_fer_mt_strada OWNER TO postgres;
+
+--
+-- TOC entry 221 (class 1259 OID 49262)
+-- Name: quartieri; Type: TABLE; Schema: local; Owner: postgres
+--
+
+CREATE TABLE local.quartieri (
+    id double precision NOT NULL,
+    geom public.geometry(MultiPolygon,4326),
+    shape_leng double precision,
+    area double precision,
+    id_neighborhood double precision
+);
+
+
+ALTER TABLE local.quartieri OWNER TO postgres;
+
+--
+-- TOC entry 246 (class 1259 OID 74174)
+-- Name: quartieri_intersect_t; Type: TABLE; Schema: local; Owner: postgres
+--
+
+CREATE TABLE local.quartieri_intersect_t (
+    id bigint NOT NULL,
+    interseca boolean,
+    count bigint
+);
+
+
+ALTER TABLE local.quartieri_intersect_t OWNER TO postgres;
+
+--
+-- TOC entry 223 (class 1259 OID 49434)
+-- Name: strade; Type: TABLE; Schema: local; Owner: postgres
+--
+
+CREATE TABLE local.strade (
+    id bigint NOT NULL,
+    geom public.geometry(LineString,4326),
+    highway character varying,
+    lanes character varying,
+    maxspeed character varying,
+    name character varying,
+    psv character varying
+);
+
+
+ALTER TABLE local.strade OWNER TO postgres;
+
+--
+-- TOC entry 218 (class 1259 OID 46668)
+-- Name: fer; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.fer (
+    id bigint NOT NULL,
+    geom public.geometry(Point,4326),
+    name character varying,
+    latitude character varying,
+    longitude character varying
+);
+
+
+ALTER TABLE public.fer OWNER TO postgres;
+
+--
+-- TOC entry 220 (class 1259 OID 49202)
+-- Name: fer_l_array; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.fer_l_array (
+    id bigint NOT NULL,
+    l_array character varying(700)
+);
+
+
+ALTER TABLE public.fer_l_array OWNER TO postgres;
+
+--
+-- TOC entry 243 (class 1259 OID 57765)
+-- Name: fer_mt_strada; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.fer_mt_strada (
+    id bigint,
+    count bigint,
+    sum double precision,
+    fer_per_mt_strada double precision,
+    geom public.geometry
+);
+
+
+ALTER TABLE public.fer_mt_strada OWNER TO postgres;
+
+--
+-- TOC entry 230 (class 1259 OID 57705)
+-- Name: s_in_quart; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.s_in_quart AS
+ SELECT q.id AS q_id,
+    s.id AS s_id,
+    public.st_contains(q.geom, s.geom) AS contain
+   FROM local.strade s,
+    local.quartieri q
+  GROUP BY q.id, s.id, (public.st_contains(q.geom, s.geom));
+
+
+ALTER TABLE public.s_in_quart OWNER TO postgres;
+
+--
+-- TOC entry 231 (class 1259 OID 57709)
+-- Name: s_in_quart_t; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.s_in_quart_t AS
+ SELECT s_in_quart.q_id,
+    s_in_quart.s_id,
+    s_in_quart.contain
+   FROM public.s_in_quart
+  WHERE (s_in_quart.contain IS TRUE);
+
+
+ALTER TABLE public.s_in_quart_t OWNER TO postgres;
+
+--
+-- TOC entry 229 (class 1259 OID 57701)
+-- Name: s_length; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.s_length AS
+ SELECT s.id,
+    s.name,
+    (public.st_length(s.geom) * (1000)::double precision) AS length
+   FROM local.strade s;
+
+
+ALTER TABLE public.s_length OWNER TO postgres;
+
+--
+-- TOC entry 232 (class 1259 OID 57713)
+-- Name: fer_strada_quartiere; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.fer_strada_quartiere AS
+ SELECT sq.q_id,
+    sq.s_id,
+    count(*) AS count,
+    sl.length
+   FROM local.strade s,
+    local.fer f,
+    public.s_in_quart_t sq,
+    public.s_length sl
+  WHERE ((f.strada_id = sq.s_id) AND (sl.id = sq.s_id) AND (s.id = sq.s_id))
+  GROUP BY sq.q_id, sq.s_id, sl.length;
+
+
+ALTER TABLE public.fer_strada_quartiere OWNER TO postgres;
+
+--
+-- TOC entry 225 (class 1259 OID 49566)
+-- Name: linee_strade; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.linee_strade (
+    id bigint NOT NULL,
+    stop_id bigint NOT NULL,
+    corsa character varying(255),
+    fer_name character varying
+);
+
+
+ALTER TABLE public.linee_strade OWNER TO postgres;
+
+--
+-- TOC entry 244 (class 1259 OID 65944)
+-- Name: orario; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.orario (
+    id bigint,
+    n_fer character varying(255),
+    corsa character varying(255),
+    sequenza character varying(255)
+);
+
+
+ALTER TABLE public.orario OWNER TO postgres;
+
+--
+-- TOC entry 224 (class 1259 OID 49497)
+-- Name: prova; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.prova (
+    id bigint NOT NULL,
+    stop_id bigint NOT NULL,
+    fer_name character varying
+);
+
+
+ALTER TABLE public.prova OWNER TO postgres;
+
+--
+-- TOC entry 228 (class 1259 OID 57697)
+-- Name: quartieri_fer; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.quartieri_fer AS
+ SELECT q.id,
+    public.st_contains(q.geom, f.geom) AS contain,
+    count(*) AS count
+   FROM local.fer f,
+    local.quartieri q
+  GROUP BY q.id, (public.st_contains(q.geom, f.geom));
+
+
+ALTER TABLE public.quartieri_fer OWNER TO postgres;
+
+--
+-- TOC entry 236 (class 1259 OID 57737)
+-- Name: q_fer_m2; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.q_fer_m2 AS
+ SELECT qf.id,
+    qf.count,
+    q.area,
+    ((qf.count)::double precision / q.area) AS fer_per_m2
+   FROM public.quartieri_fer qf,
+    local.quartieri q
+  WHERE ((qf.contain IS TRUE) AND (qf.id = q.id));
+
+
+ALTER TABLE public.q_fer_m2 OWNER TO postgres;
+
+--
+-- TOC entry 226 (class 1259 OID 49630)
+-- Name: qgis_projects; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.qgis_projects (
+    name text NOT NULL,
+    metadata jsonb,
+    content bytea
+);
+
+
+ALTER TABLE public.qgis_projects OWNER TO postgres;
+
+--
+-- TOC entry 233 (class 1259 OID 57721)
+-- Name: quartieri_fer_t; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.quartieri_fer_t AS
+ SELECT quartieri_fer.id,
+    quartieri_fer.contain,
+    quartieri_fer.count
+   FROM public.quartieri_fer
+  WHERE (quartieri_fer.contain IS TRUE);
+
+
+ALTER TABLE public.quartieri_fer_t OWNER TO postgres;
+
+--
+-- TOC entry 227 (class 1259 OID 57689)
+-- Name: quartieri_intersect; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.quartieri_intersect AS
+ SELECT q.id,
+    public.st_intersects(l.geom, q.geom) AS interseca,
+    count(*) AS count
+   FROM local.linee l,
+    local.quartieri q
+  GROUP BY q.id, (public.st_intersects(l.geom, q.geom));
+
+
+ALTER TABLE public.quartieri_intersect OWNER TO postgres;
+
+--
+-- TOC entry 238 (class 1259 OID 57745)
+-- Name: quartieri_intersect_t; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.quartieri_intersect_t AS
+ SELECT quartieri_intersect.id,
+    quartieri_intersect.interseca,
+    quartieri_intersect.count
+   FROM public.quartieri_intersect
+  WHERE (quartieri_intersect.interseca IS TRUE);
+
+
+ALTER TABLE public.quartieri_intersect_t OWNER TO postgres;
+
+--
+-- TOC entry 239 (class 1259 OID 57749)
+-- Name: s_length2; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.s_length2 AS
+ SELECT s.id,
+    s.name,
+    (public.st_length(public.st_transform(s.geom, 2163)) * (1000)::double precision) AS length
+   FROM local.strade s;
+
+
+ALTER TABLE public.s_length2 OWNER TO postgres;
+
+--
+-- TOC entry 240 (class 1259 OID 57753)
+-- Name: s_length3; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.s_length3 AS
+ SELECT s.id,
+    s.name,
+    public.st_length(public.st_transform(s.geom, 2163)) AS length
+   FROM local.strade s;
+
+
+ALTER TABLE public.s_length3 OWNER TO postgres;
+
+--
+-- TOC entry 241 (class 1259 OID 57757)
+-- Name: s_length4; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.s_length4 AS
+ SELECT s.id,
+    s.name,
+    (public.st_length(public.st_transform(s.geom, 2163)) / (1000)::double precision) AS length
+   FROM local.strade s;
+
+
+ALTER TABLE public.s_length4 OWNER TO postgres;
+
+--
+-- TOC entry 234 (class 1259 OID 57725)
+-- Name: strade_quart; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.strade_quart AS
+ SELECT q.id AS q_id,
+    s.id AS s_id,
+    public.st_contains(q.geom, s.geom) AS contenuta
+   FROM local.strade s,
+    local.quartieri q
+  GROUP BY q.id, s.id, (public.st_contains(q.geom, s.geom));
+
+
+ALTER TABLE public.strade_quart OWNER TO postgres;
+
+--
+-- TOC entry 235 (class 1259 OID 57729)
+-- Name: strade_quart_mt; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.strade_quart_mt AS
+ SELECT s.q_id,
+    s.s_id,
+    s.contenuta,
+    (sl.length * (1000)::double precision) AS length_mt
+   FROM public.strade_quart s,
+    public.s_length sl
+  WHERE ((s.contenuta IS TRUE) AND (sl.id = s.s_id));
+
+
+ALTER TABLE public.strade_quart_mt OWNER TO postgres;
+
+--
+-- TOC entry 237 (class 1259 OID 57741)
+-- Name: strade_quart_mt_sum; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.strade_quart_mt_sum AS
+ SELECT sq.q_id,
+    sum(sq.length_mt) AS st_sum
+   FROM public.strade_quart_mt sq
+  GROUP BY sq.q_id;
+
+
+ALTER TABLE public.strade_quart_mt_sum OWNER TO postgres;
+
+--
+-- TOC entry 242 (class 1259 OID 57761)
+-- Name: v_fer_per_mt_strada; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.v_fer_per_mt_strada AS
+ SELECT qf.id,
+    qf.count,
+    sq.st_sum AS sum,
+    ((qf.count)::double precision / sq.st_sum) AS fer_per_mt_strada
+   FROM public.q_fer_m2 qf,
+    public.strade_quart_mt_sum sq
+  WHERE (qf.id = sq.q_id)
+  GROUP BY qf.id, qf.count, sq.st_sum, ((qf.count)::double precision / sq.st_sum);
+
+
+ALTER TABLE public.v_fer_per_mt_strada OWNER TO postgres;
+
+--
+-- TOC entry 4165 (class 2606 OID 49266)
+-- Name: quartieri QuartieriModena_pkey; Type: CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.quartieri
+    ADD CONSTRAINT "QuartieriModena_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4161 (class 2606 OID 47770)
+-- Name: linee_fer_orario fer_l_array_pkey_composta; Type: CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.linee_fer_orario
+    ADD CONSTRAINT fer_l_array_pkey_composta PRIMARY KEY (id, stop_id);
+
+
+--
+-- TOC entry 4157 (class 2606 OID 49239)
+-- Name: fer lfer_pkey; Type: CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.fer
+    ADD CONSTRAINT lfer_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4167 (class 2606 OID 49304)
+-- Name: linee_strade linee_strade_pkey; Type: CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.linee_strade
+    ADD CONSTRAINT linee_strade_pkey PRIMARY KEY (id, strada_id);
+
+
+--
+-- TOC entry 4155 (class 2606 OID 46244)
+-- Name: linee lpr_pkey; Type: CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.linee
+    ADD CONSTRAINT lpr_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4177 (class 2606 OID 74173)
+-- Name: q_fer_m2 q_fer_m2_pkey; Type: CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.q_fer_m2
+    ADD CONSTRAINT q_fer_m2_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4181 (class 2606 OID 74209)
+-- Name: q_fer_mt_strada q_fer_mt_strada_pkey; Type: CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.q_fer_mt_strada
+    ADD CONSTRAINT q_fer_mt_strada_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4179 (class 2606 OID 74178)
+-- Name: quartieri_intersect_t quartieri_intersect_t_pkey; Type: CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.quartieri_intersect_t
+    ADD CONSTRAINT quartieri_intersect_t_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4169 (class 2606 OID 49446)
+-- Name: strade strade_pkey; Type: CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.strade
+    ADD CONSTRAINT strade_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4163 (class 2606 OID 49247)
+-- Name: fer_l_array PK; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.fer_l_array
+    ADD CONSTRAINT "PK" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4159 (class 2606 OID 46738)
+-- Name: fer fer_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.fer
+    ADD CONSTRAINT fer_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4173 (class 2606 OID 49572)
+-- Name: linee_strade linee_strade_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.linee_strade
+    ADD CONSTRAINT linee_strade_pkey PRIMARY KEY (id, stop_id);
+
+
+--
+-- TOC entry 4171 (class 2606 OID 49503)
+-- Name: prova prova_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.prova
+    ADD CONSTRAINT prova_pkey PRIMARY KEY (id, stop_id);
+
+
+--
+-- TOC entry 4175 (class 2606 OID 49636)
+-- Name: qgis_projects qgis_projects_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.qgis_projects
+    ADD CONSTRAINT qgis_projects_pkey PRIMARY KEY (name);
+
+
+--
+-- TOC entry 4182 (class 2606 OID 49540)
+-- Name: linee_fer_orario linee_fer_orario_id_fkey; Type: FK CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.linee_fer_orario
+    ADD CONSTRAINT linee_fer_orario_id_fkey FOREIGN KEY (id) REFERENCES local.linee(id);
+
+
+--
+-- TOC entry 4183 (class 2606 OID 49545)
+-- Name: linee_fer_orario linee_fer_orario_stop_id_fkey; Type: FK CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.linee_fer_orario
+    ADD CONSTRAINT linee_fer_orario_stop_id_fkey FOREIGN KEY (stop_id) REFERENCES local.fer(id);
+
+
+--
+-- TOC entry 4184 (class 2606 OID 49550)
+-- Name: linee_strade linee_strade_id_fkey; Type: FK CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.linee_strade
+    ADD CONSTRAINT linee_strade_id_fkey FOREIGN KEY (id) REFERENCES local.linee(id);
+
+
+--
+-- TOC entry 4185 (class 2606 OID 49555)
+-- Name: linee_strade linee_strade_strada_id_fkey; Type: FK CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.linee_strade
+    ADD CONSTRAINT linee_strade_strada_id_fkey FOREIGN KEY (strada_id) REFERENCES local.strade(id);
+
+
+--
+-- TOC entry 4186 (class 2606 OID 74220)
+-- Name: q_fer_m2 q_fer_m2_fk; Type: FK CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.q_fer_m2
+    ADD CONSTRAINT q_fer_m2_fk FOREIGN KEY (id) REFERENCES local.quartieri(id) NOT VALID;
+
+
+--
+-- TOC entry 4188 (class 2606 OID 74215)
+-- Name: q_fer_mt_strada q_fer_mt_strada_fk; Type: FK CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.q_fer_mt_strada
+    ADD CONSTRAINT q_fer_mt_strada_fk FOREIGN KEY (id) REFERENCES local.quartieri(id) NOT VALID;
+
+
+--
+-- TOC entry 4187 (class 2606 OID 74210)
+-- Name: quartieri_intersect_t quartieri_intersect_t_fk; Type: FK CONSTRAINT; Schema: local; Owner: postgres
+--
+
+ALTER TABLE ONLY local.quartieri_intersect_t
+    ADD CONSTRAINT quartieri_intersect_t_fk FOREIGN KEY (id) REFERENCES local.quartieri(id) NOT VALID;
+
+--
+-- PostgreSQL database dump complete
+--
+
